@@ -1,17 +1,20 @@
 
 import os
-from datetime import datetime
+import secrets
+from datetime import datetime, timezone
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Header
+from pydantic import BaseModel, Field, field_validator
 from pymongo import MongoClient, DESCENDING
-from pymongo.errors import PyMongoError
+from pymongo.errors import PyMongoError, DuplicateKeyError
 from dotenv import load_dotenv
 
 load_dotenv()
 
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB = os.getenv("MONGO_DB")
+API_WRITE_KEY = os.getenv("API_WRITE_KEY")
 
 if not MONGO_URI or not MONGO_DB:
     raise RuntimeError("Falta configurar MongoDB en .env")
@@ -26,8 +29,66 @@ resenas = base_datos["resenas_conductores"]
 
 app = FastAPI(
     title="Wheels Alpes - API de Reputacion",
-    version="1.0.0"
+    version="1.1.0"
 )
+
+
+class DatosViaje(BaseModel):
+    placa: str = Field(min_length=1, max_length=20)
+    fecha: str
+    hora_salida: str
+
+    @field_validator("fecha")
+    @classmethod
+    def validar_fecha(cls, valor):
+        try:
+            datetime.strptime(valor, "%Y-%m-%d")
+        except ValueError:
+            raise ValueError("La fecha debe ser YYYY-MM-DD")
+        return valor
+
+    @field_validator("hora_salida")
+    @classmethod
+    def validar_hora(cls, valor):
+        try:
+            datetime.strptime(valor, "%H:%M")
+        except ValueError:
+            raise ValueError("La hora debe ser HH:MM")
+        return valor
+
+
+class ResenaNueva(BaseModel):
+    doc_pasajero: str = Field(min_length=1)
+    doc_conductor: str = Field(min_length=1)
+    nombre_pasajero: str = Field(min_length=1)
+    nombre_conductor: str = Field(min_length=1)
+    viaje: DatosViaje
+    calificacion: int = Field(ge=1, le=5)
+    comentario: str = Field(min_length=1, max_length=2000)
+
+    @field_validator("comentario")
+    @classmethod
+    def validar_comentario(cls, valor):
+        valor = valor.strip()
+        if not valor:
+            raise ValueError("El comentario no puede estar vacio")
+        return valor
+
+
+def verificar_clave(clave_recibida):
+    if not API_WRITE_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="No se ha configurado la clave de escritura"
+        )
+
+    if not clave_recibida or not secrets.compare_digest(
+        clave_recibida, API_WRITE_KEY
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="No autorizado para modificar resenas"
+        )
 
 
 @app.get("/")
@@ -133,4 +194,50 @@ def consultar_resenas(
         raise HTTPException(
             status_code=503,
             detail="No fue posible consultar las resenas"
+        )
+
+
+@app.post("/resenas", status_code=201)
+def crear_resena(
+    datos: ResenaNueva,
+    x_api_key: str | None = Header(
+        default=None,
+        alias="X-API-Key"
+    )
+):
+    verificar_clave(x_api_key)
+
+    documento = {
+        "doc_pasajero": datos.doc_pasajero,
+        "doc_conductor": datos.doc_conductor,
+        "nombre_pasajero": datos.nombre_pasajero,
+        "nombre_conductor": datos.nombre_conductor,
+        "viaje": datos.viaje.model_dump(),
+        "calificacion": datos.calificacion,
+        "comentario": datos.comentario,
+        "estado": "publicada",
+        "fecha_creacion": datetime.now(timezone.utc),
+        "utilidad": 0
+    }
+
+    try:
+        resultado = resenas.insert_one(documento)
+
+        return {
+            "mensaje": "Resena creada correctamente",
+            "id": str(resultado.inserted_id),
+            "calificacion": datos.calificacion,
+            "estado": "publicada"
+        }
+
+    except DuplicateKeyError:
+        raise HTTPException(
+            status_code=409,
+            detail="Este pasajero ya reseno este viaje"
+        )
+
+    except PyMongoError:
+        raise HTTPException(
+            status_code=503,
+            detail="No fue posible guardar la resena"
         )
