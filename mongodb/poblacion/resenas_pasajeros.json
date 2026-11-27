@@ -1,0 +1,20 @@
+[{
+  "_id": {
+    "$oid": "6b09cfd6c56d986e4c5100c3"
+  },
+  "doc_conductor": "9000000001",
+  "doc_pasajero": "1010101067",
+  "nombre_conductor": "Conductor Prueba",
+  "nombre_pasajero": "Ejemplo Ej",
+  "viaje": {
+    "placa": "PRU001",
+    "fecha": "2026-11-20",
+    "hora_salida": "14:30"
+  },
+  "calificacion": 4,
+  "estado": "publicada",
+  "fecha_creacion": {
+    "$date": "2026-11-27T18:45:42.130Z"
+  },
+  "comentario": "Prueba de integración RF6: pasajero puntual y respetuoso durante el viaje"
+}]

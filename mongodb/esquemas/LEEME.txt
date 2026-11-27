@@ -1,0 +1,11 @@
+# MongoDB: esquemas reales de Wheels Alpes
+
+Estos archivos documentan la configuración obtenida de `db.getCollectionInfos()` y `getIndexes()` el 27 de noviembre de 2026.
+
+- `resenas_conductores_validator.json`: validador exacto de `resenas_conductores`.
+- `resenas_pasajeros_validator.json`: validador exacto de `resenas_pasajeros`.
+- `aplicar_esquemas.js`: script **reconstruido** a partir de la configuración existente que crea o actualiza validación e índices únicos. No es necesariamente el script histórico original.
+
+Ambas colecciones usan `validationLevel: strict` y `validationAction: error`. El archivo JS puede alterar la validación si se ejecuta y por eso **no debe ejecutarse** sobre la base activa para preparar la entrega: los validadores ya existen.
+
+Estos archivos contienen únicamente esquema, sin datos de conexión ni credenciales.

@@ -1,0 +1,37 @@
+WHEELS ALPES - ENTREGA 3 - CONSULTAS MONGODB (MONGOSH)
+======================================================
+
+Cinco scripts de lectura correspondientes a las agregaciones implementadas
+por la API FastAPI en main.py. Reconstruidos a partir de esa implementacion
+para documentar y reproducir las consultas; no son archivos originales
+historicos del desarrollo.
+
+USO EN MONGODB COMPASS
+1. Abrir la conexion y Open MongoDB shell.
+2. Verificar que la base ISIS2304C09202620 es la correcta.
+3. Copiar el contenido de uno de los archivos .js y ejecutarlo en mongosh.
+4. Guardar captura de la sentencia/pipeline y del resultado, porque el
+   enunciado pide evidencia visual de las consultas.
+5. Son solo consultas: no alteran documentos ni configuracion.
+
+ARCHIVOS
+RFC1_ranking_conductores.js: promedio y cantidad por conductor.
+  NOTA: viajes completados y filtro de zona se calculan en Oracle APEX.
+RFC2_evolucion_mensual.js: promedio por mes del anio; incluye 12 meses
+  en el resultado, completando ausencias mediante JavaScript de mongosh.
+RFC3_comparacion_conductores.js: puntajes, cantidad, respuestas y porcentajes.
+  NOTA: la universidad y el promedio zonal se combinan en Oracle APEX.
+RFA1_tablero_conductor.js: resumen (incluye retiradas) y serie mensual.
+RFA2_tablero_pasajero.js: escritas, respuestas y recibidas de conductores;
+  consulta resenas_conductores y resenas_pasajeros.
+
+AJUSTES DE PRUEBA
+- Se incluyen documentos de prueba en los ejemplos. Cambie las variables
+  docConductor o docPasajero al inicio del script si quiere otros usuarios.
+- fechaInicio y fechaFin = null significa historial completo.
+- Verificar que los documentos exportados no contienen informacion sensible
+  antes de publicarlos en un repositorio de acceso publico.
+
+Estos archivos documentan la parte MongoDB. El informe final debe explicar
+la parte Oracle APEX de RFC1 (zona y viajes completados) y RFC3 (universidad
+ y promedio zonal), y justificar las agregaciones.

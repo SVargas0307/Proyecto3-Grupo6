@@ -1,0 +1,12 @@
+Evidencias de consultas - Wheels Alpes, Entrega 3
+Fecha: 27/11/2026
+
+RFC1_ranking_01.png, RFC1_ranking_02.png: resultado del top 10 en mongosh.
+RFC2_evolucion.png: agregacion de evolucion mensual para 2026.
+RFC3_comparacion_01.png a RFC3_comparacion_03.png: agregacion comparativa.
+RFA1_tablero_conductor.png: indicadores y tendencia del conductor.
+RFA2_tablero_y_validacion.png: tablero del pasajero y rechazo de insertOne invalido, error 121 en ambas colecciones.
+PRUEBA_VALIDADORES.js: prueba reproducible de rechazos de documentos invalidos.
+
+Las consultas principales estan en mongodb/consultas del repositorio. La parte de zona/universidad de RFC1/RFC3 se completa en Oracle APEX.
+Los archivos de imagen muestran la salida de MongoDB Shell; consultar tambien los .js de consultas para sus pipelines completos.

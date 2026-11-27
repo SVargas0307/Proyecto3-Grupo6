@@ -1,0 +1,62 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "required": [
+      "doc_conductor",
+      "doc_pasajero",
+      "viaje",
+      "calificacion",
+      "estado",
+      "fecha_creacion"
+    ],
+    "properties": {
+      "doc_conductor": {
+        "bsonType": "string"
+      },
+      "doc_pasajero": {
+        "bsonType": "string"
+      },
+      "nombre_conductor": {
+        "bsonType": "string"
+      },
+      "nombre_pasajero": {
+        "bsonType": "string"
+      },
+      "viaje": {
+        "bsonType": "object",
+        "required": [
+          "placa",
+          "fecha",
+          "hora_salida"
+        ],
+        "properties": {
+          "placa": {
+            "bsonType": "string"
+          },
+          "fecha": {
+            "bsonType": "string"
+          },
+          "hora_salida": {
+            "bsonType": "string"
+          }
+        }
+      },
+      "calificacion": {
+        "bsonType": "int",
+        "minimum": 1,
+        "maximum": 5
+      },
+      "comentario": {
+        "bsonType": "string"
+      },
+      "estado": {
+        "enum": [
+          "publicada"
+        ]
+      },
+      "fecha_creacion": {
+        "bsonType": "date"
+      }
+    }
+  }
+}
