@@ -241,3 +241,257 @@ def crear_resena(
             status_code=503,
             detail="No fue posible guardar la resena"
         )
+
+# ==========================================
+# RF2, RF3 y RF5 - Resenas del pasajero
+# ==========================================
+
+from bson import ObjectId
+from bson.errors import InvalidId
+
+
+class EditarResena(BaseModel):
+    doc_pasajero: str = Field(min_length=1)
+    calificacion: int = Field(ge=1, le=5)
+    comentario: str = Field(min_length=1, max_length=2000)
+
+    @field_validator("comentario")
+    @classmethod
+    def limpiar_comentario(cls, valor):
+        valor = valor.strip()
+        if not valor:
+            raise ValueError("El comentario es obligatorio")
+        return valor
+
+
+class EliminarResena(BaseModel):
+    doc_pasajero: str = Field(min_length=1)
+
+
+def convertir_id_resena(resena_id):
+    try:
+        return ObjectId(resena_id)
+    except (InvalidId, TypeError):
+        raise HTTPException(
+            status_code=400,
+            detail="Identificador de resena invalido"
+        )
+
+
+def convertir_fecha(valor):
+    if isinstance(valor, datetime):
+        return valor.isoformat()
+    return None
+
+
+def verificar_propiedad_y_estado(documento, doc_pasajero):
+    if documento is None:
+        raise HTTPException(
+            status_code=404,
+            detail="La resena no existe"
+        )
+
+    if documento.get("doc_pasajero") != doc_pasajero:
+        raise HTTPException(
+            status_code=403,
+            detail="Esta resena no pertenece al pasajero"
+        )
+
+    if documento.get("eliminado_por") == "conductor":
+        raise HTTPException(
+            status_code=409,
+            detail="El conductor elimino esta resena"
+        )
+
+    if documento.get("estado") not in (
+        "publicada", "destacada"
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="La resena ya fue eliminada"
+        )
+
+
+# RF5 - Consultar el historial propio
+@app.get("/resenas/mias")
+def consultar_mis_resenas(
+    doc_pasajero: str = Query(..., min_length=1),
+    pagina: int = Query(1, ge=1),
+    limite: int = Query(20, ge=1, le=100),
+    x_api_key: str | None = Header(
+        default=None, alias="X-API-Key"
+    )
+):
+    verificar_clave(x_api_key)
+
+    filtro = {"doc_pasajero": doc_pasajero}
+
+    try:
+        total = resenas.count_documents(filtro)
+
+        documentos = list(
+            resenas.find(filtro)
+            .sort("fecha_creacion", DESCENDING)
+            .skip((pagina - 1) * limite)
+            .limit(limite)
+        )
+
+        items = []
+
+        for documento in documentos:
+            respuesta = documento.get("respuesta")
+            tiene_respuesta = (
+                isinstance(respuesta, dict)
+                and bool(respuesta.get("texto"))
+            )
+
+            items.append({
+                "id": str(documento["_id"]),
+                "conductor": documento.get(
+                    "nombre_conductor", "Conductor"
+                ),
+                "doc_conductor": documento.get(
+                    "doc_conductor"
+                ),
+                "viaje": documento.get("viaje", {}),
+                "calificacion": documento.get(
+                    "calificacion"
+                ),
+                "comentario": documento.get(
+                    "comentario"
+                ),
+                "estado": documento.get("estado"),
+                "respondida": tiene_respuesta,
+                "respuesta_conductor": (
+                    respuesta.get("texto")
+                    if tiene_respuesta
+                    else None
+                ),
+                "fecha": convertir_fecha(
+                    documento.get("fecha_creacion")
+                ),
+                "fecha_actualizacion": convertir_fecha(
+                    documento.get("fecha_actualizacion")
+                ),
+                "fecha_eliminacion": convertir_fecha(
+                    documento.get("fecha_eliminacion")
+                )
+            })
+
+        return {
+            "total": total,
+            "pagina": pagina,
+            "limite": limite,
+            "items": items
+        }
+
+    except PyMongoError:
+        raise HTTPException(
+            status_code=503,
+            detail="Error al consultar el historial"
+        )
+
+
+# RF2 - Editar una resena propia
+@app.patch("/resenas/{resena_id}")
+def editar_resena(
+    resena_id: str,
+    datos: EditarResena,
+    x_api_key: str | None = Header(
+        default=None, alias="X-API-Key"
+    )
+):
+    verificar_clave(x_api_key)
+    identificador = convertir_id_resena(resena_id)
+
+    try:
+        documento = resenas.find_one(
+            {"_id": identificador}
+        )
+
+        verificar_propiedad_y_estado(
+            documento, datos.doc_pasajero
+        )
+
+        resenas.update_one(
+            {
+                "_id": identificador,
+                "doc_pasajero": datos.doc_pasajero,
+                "estado": {
+                    "$in": ["publicada", "destacada"]
+                }
+            },
+            {
+                "$set": {
+                    "calificacion": datos.calificacion,
+                    "comentario": datos.comentario,
+                    "fecha_actualizacion": datetime.now(
+                        timezone.utc
+                    )
+                }
+            }
+        )
+
+        return {
+            "mensaje": "Resena actualizada correctamente",
+            "id": resena_id
+        }
+
+    except PyMongoError:
+        raise HTTPException(
+            status_code=503,
+            detail="Error al actualizar la resena"
+        )
+
+
+# RF3 - Eliminacion logica por el pasajero
+@app.post("/resenas/{resena_id}/eliminar")
+def eliminar_resena(
+    resena_id: str,
+    datos: EliminarResena,
+    x_api_key: str | None = Header(
+        default=None, alias="X-API-Key"
+    )
+):
+    verificar_clave(x_api_key)
+    identificador = convertir_id_resena(resena_id)
+
+    try:
+        documento = resenas.find_one(
+            {"_id": identificador}
+        )
+
+        verificar_propiedad_y_estado(
+            documento, datos.doc_pasajero
+        )
+
+        resenas.update_one(
+            {
+                "_id": identificador,
+                "doc_pasajero": datos.doc_pasajero,
+                "estado": {
+                    "$in": ["publicada", "destacada"]
+                }
+            },
+            {
+                "$set": {
+                    "estado": "eliminada",
+                    "eliminado_por": "pasajero",
+                    "fecha_eliminacion": datetime.now(
+                        timezone.utc
+                    )
+                }
+            }
+        )
+
+        return {
+            "mensaje": "Resena eliminada correctamente",
+            "id": resena_id,
+            "estado": "eliminada"
+        }
+
+    except PyMongoError:
+        raise HTTPException(
+            status_code=503,
+            detail="Error al eliminar la resena"
+        )
